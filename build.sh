@@ -1,4 +1,4 @@
-yosys -p 'read_verilog -sv ChipInterface.sv; synth_ecp5 -json synth_out.json -top ChipInterface'
+yosys -p 'read_verilog -sv vga.sv ChipInterface.sv; synth_ecp5 -json synth_out.json -top ChipInterface'
 
 nextpnr-ecp5 --12k --json synth_out.json --lpf constraints.lpf --textcfg pnr_out.config
 
