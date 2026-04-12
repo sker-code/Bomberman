@@ -1,3 +1,4 @@
+`default_nettype none
 module VGA
   (input  logic clk, rst_n,
    output logic HS, VS, blank,
