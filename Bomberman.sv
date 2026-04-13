@@ -97,7 +97,7 @@ module Bomb
         bomb_firing = 0;
       end
       FIRE: begin
-        next_state = (counter == 240) ? WAIT : FIRE;
+        next_state = (counter == 180) ? WAIT : FIRE;
         bomb_ticking = 0;
         clear_counter = 0;
         bomb_firing = 1;
@@ -248,12 +248,12 @@ module TempMap
               temp_map[i][j] = 3'd0; // grass
             end
           end 
-          else if (map[i][j] != 3'd2) begin
-            if (bomb_firing && (((i == bomb1_y) && (j == bomb1_y)) ||
-                                ((i == bomb1_y - 1) && (j == bomb1_y)) ||
-                                ((i == bomb1_y + 1) && (j == bomb1_y)) ||
-                                ((i == bomb1_y) && (j == bomb1_y - 1)) ||
-                                ((i == bomb1_y) && (j == bomb1_y + 1)))) begin
+          else if (map[i][j] != 3'd2 && map[i][j] != 3'd4) begin
+            if (bomb_firing && (((i == bomb1_y) && (j == bomb1_x)) ||
+                                ((i == bomb1_y - 1) && (j == bomb1_x)) ||
+                                ((i == bomb1_y + 1) && (j == bomb1_x)) ||
+                                ((i == bomb1_y) && (j == bomb1_x - 1)) ||
+                                ((i == bomb1_y) && (j == bomb1_x + 1)))) begin
               temp_map[i][j] = 3'd4; // fire
             end
             else begin
