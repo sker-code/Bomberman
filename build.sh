@@ -1,4 +1,4 @@
-yosys -p 'read_verilog -sv MapDisplayDecoder.sv MapDisplay.sv Display.sv VGA.sv ChipInterface.sv; synth_ecp5 -json synth_out.json -top ChipInterface'
+yosys -p 'read_verilog -sv MapDisplayDecoder.sv MapDisplay.sv Display.sv VGA.sv Bomberman.sv ChipInterface.sv; synth_ecp5 -json synth_out.json -top ChipInterface'
 
 nextpnr-ecp5 --12k --json synth_out.json --lpf constraints.lpf --textcfg pnr_out.config
 
