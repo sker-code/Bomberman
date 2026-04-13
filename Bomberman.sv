@@ -11,12 +11,15 @@ module Bomberman
   logic [3:0] pl2_x, pl2_y;
   logic [3:0] bomb1_x, bomb1_y;
   logic bomb1_ticking, bomb_firing;
+  logic pl1_alive, pl2_alive;
+  logic pl1_win, pl2_win;
 
-  assign led = bomb_firing;
+  assign led = {pl1_win, pl2_win};
   
   Map map_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
             .temp_map(temp_map),
-            .map(map));
+            .map(map),
+            .pl1_win(pl1_win), .pl2_win(pl2_win));
 
   TempMap tempmap_m(.rst_n(rst_n), .refresh(refresh),
                     .map(map),
@@ -26,11 +29,19 @@ module Bomberman
                     .bomb_ticking(bomb1_ticking), .bomb_firing(bomb_firing),
                     .temp_map(temp_map));
   
-  Player player_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
-                  .btn_up(btn_up), .btn_down(btn_down), .btn_left(btn_left), .btn_right(btn_right),
-                  .map(map),
-                  .pl1_x(pl1_x), .pl1_y(pl1_y),
-                  .pl2_x(pl2_x), .pl2_y(pl2_y));
+  Player player1_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
+                   .btn_up(btn_up), .btn_down(btn_down), .btn_left(btn_left), .btn_right(btn_right),
+                   .map(map),
+                   .is_player1(1),
+                   .pl_x(pl1_x), .pl_y(pl1_y),
+                   .is_alive(pl1_alive));
+  
+  Player player2_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
+                   .btn_up(0), .btn_down(0), .btn_left(0), .btn_right(0),
+                   .map(map),
+                   .is_player1(0),
+                   .pl_x(pl2_x), .pl_y(pl2_y),
+                   .is_alive(pl2_alive));
 
   Bomb bomb_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
               .pl_x(pl1_x), .pl_y(pl1_y),
@@ -38,8 +49,51 @@ module Bomberman
               .bomb_x(bomb1_x), .bomb_y(bomb1_y),
               .bomb_ticking(bomb1_ticking), .bomb_firing(bomb_firing));
 
+  GameFSM fsm_m(.pl1_alive(pl1_alive), .pl2_alive(pl2_alive),
+                .clk(clk), .rst_n(rst_n),
+                .pl1_win(pl1_win), .pl2_win(pl2_win));
   
 endmodule: Bomberman
+
+module GameFSM
+  (input  logic pl1_alive, pl2_alive,
+   input  logic clk, rst_n,
+   output logic pl1_win, pl2_win);
+
+  enum logic [1:0] {PLAY, WIN1, WIN2} curr_state, next_state;
+
+  always_comb begin
+    case (curr_state)
+      PLAY: begin
+        next_state = (pl1_alive && pl2_alive) ? PLAY : ((pl2_alive) ? WIN2 : WIN1);
+        pl1_win = 0;
+        pl2_win = 0;
+      end
+      WIN1: begin
+        next_state = WIN1;
+        pl1_win = 1;
+        pl2_win = 0;
+      end
+      WIN2: begin
+        next_state = WIN2;
+        pl1_win = 0;
+        pl2_win = 1;
+      end
+      default: begin
+        next_state = PLAY;
+        pl1_win = 0;
+        pl2_win = 0;
+      end
+    endcase
+  end
+
+  always_ff @(posedge clk) begin
+  if (~rst_n) 
+    curr_state <= PLAY;
+  else
+    curr_state <= next_state;
+  end
+endmodule: GameFSM
 
 module BombCounter
   (input  logic clk, rst_n, refresh, clear,
@@ -124,15 +178,18 @@ module Player
   (input  logic clk, rst_n, refresh,
    input  logic btn_up, btn_down, btn_left, btn_right,
    input  logic [10:0][14:0][2:0] map,
-   output logic [3:0] pl1_x, pl1_y,
-   output logic [3:0] pl2_x, pl2_y);
+   input  logic is_player1,
+   output logic [3:0] pl_x, pl_y,
+   output logic is_alive);
+
+  assign is_alive = (map[pl_y][pl_x] != 3'd4);
 
   logic up_valid, down_valid, left_valid, right_valid;
 
-  assign up_valid = (map[pl1_y - 1][pl1_x] == 0 || map[pl1_y - 1][pl1_x] == 4);
-  assign down_valid = (map[pl1_y + 1][pl1_x] == 0 || map[pl1_y + 1][pl1_x] == 4);
-  assign left_valid = (map[pl1_y][pl1_x - 1] == 0 || map[pl1_y][pl1_x - 1] == 4);
-  assign right_valid = (map[pl1_y][pl1_x + 1] == 0 || map[pl1_y][pl1_x + 1] == 4);
+  assign up_valid = (map[pl_y - 1][pl_x] == 0 || map[pl_y - 1][pl_x] == 4);
+  assign down_valid = (map[pl_y + 1][pl_x] == 0 || map[pl_y + 1][pl_x] == 4);
+  assign left_valid = (map[pl_y][pl_x - 1] == 0 || map[pl_y][pl_x - 1] == 4);
+  assign right_valid = (map[pl_y][pl_x + 1] == 0 || map[pl_y][pl_x + 1] == 4);
   
   logic up, down, left, right;
 
@@ -150,22 +207,26 @@ module Player
 
   always_ff @(posedge clk) begin
     if (~rst_n) begin
-      pl1_x <= 1;
-      pl1_y <= 1;
-      pl2_x <= 9;
-      pl2_y <= 13;
+      if (is_player1) begin
+        pl_x <= 1;
+        pl_y <= 1;
+      end
+      else begin
+        pl_x <= 13;
+        pl_y <= 9;
+      end
     end
-    if (up && pl1_y > 1 && up_valid) begin
-      pl1_y <= pl1_y - 1;
+    if (up && pl_y > 1 && up_valid) begin
+      pl_y <= pl_y - 1;
     end
-    else if (down && pl1_y < 9 && down_valid) begin
-      pl1_y <= pl1_y + 1;
+    else if (down && pl_y < 9 && down_valid) begin
+      pl_y <= pl_y + 1;
     end
-    else if (left && pl1_x > 1 && left_valid) begin
-      pl1_x <= pl1_x - 1;
+    else if (left && pl_x > 1 && left_valid) begin
+      pl_x <= pl_x - 1;
     end
-    else if (right && pl1_x < 13 && right_valid) begin
-      pl1_x <= pl1_x + 1;
+    else if (right && pl_x < 13 && right_valid) begin
+      pl_x <= pl_x + 1;
     end
   end
   
@@ -213,61 +274,40 @@ module TempMap
   always_comb begin
     for (int i = 0; i < 11; i++) begin
       for (int j = 0; j < 15; j++) begin
-        if ((i == pl1_y) && (j == pl1_x)) begin
-          temp_map[i][j] = 3'd5; // player 1
+        // if not unbreakable and not fire
+        if ((map[i][j] != 3'd2) && (map[i][j] != 3'd4) && 
+             bomb_firing && (((i == bomb1_y) && (j == bomb1_x)) ||
+                             ((i == bomb1_y - 1) && (j == bomb1_x)) ||
+                             ((i == bomb1_y + 1) && (j == bomb1_x)) ||
+                             ((i == bomb1_y) && (j == bomb1_x - 1)) ||
+                             ((i == bomb1_y) && (j == bomb1_x + 1)))) begin
+            temp_map[i][j] = 3'd4; // fire
         end
-        else if ((i == 9) && (j == 13)) begin
-          temp_map[i][j] = 3'd6; // player 2
+        // if bomb finished firing, replace it with grass
+        else if (!bomb_firing && (map[i][j] == 3'd4)) begin 
+            temp_map[i][j] = 3'd0; // grass
         end
-        else begin
-          if (map[i][j] == 3'd5) begin// prev player 1 location
-            if (bomb_ticking && (i == bomb1_y) && (j == bomb1_x)) begin
-              temp_map[i][j] = 3'd3; // bomb
-            end
-            // else if (bomb_firing) begin
-            //   if () begin
-            //     temp_map[i][j] = 3'd4; //fire
-            //   end
-            //   else if ( && map[i][j] != 3'd2) begin
-            //     temp_map[i][j] = 3'd4; //fire
-            //   end
-            //   else if ( && map[i][j] != 3'd2) begin
-            //     temp_map[i][j] = 3'd4; //fire
-            //   end
-            //   else if ( && map[i][j] != 3'd2) begin
-            //     temp_map[i][j] = 3'd4; //fire
-            //   end
-            //   else if ( && map[i][j] != 3'd2) begin
-            //     temp_map[i][j] = 3'd4; //fire
-            //   end
-            //   else begin
-            //     temp_map[i][j] = map[i][j];
-            //   end
-            // end
-            else begin
-              temp_map[i][j] = 3'd0; // grass
-            end
-          end 
-          else if (map[i][j] != 3'd2 && map[i][j] != 3'd4) begin
-            if (bomb_firing && (((i == bomb1_y) && (j == bomb1_x)) ||
-                                ((i == bomb1_y - 1) && (j == bomb1_x)) ||
-                                ((i == bomb1_y + 1) && (j == bomb1_x)) ||
-                                ((i == bomb1_y) && (j == bomb1_x - 1)) ||
-                                ((i == bomb1_y) && (j == bomb1_x + 1)))) begin
-              temp_map[i][j] = 3'd4; // fire
-            end
-            else begin
-              temp_map[i][j] = map[i][j];
-            end
+        // player 1 placement
+        else if ((i == pl1_y) && (j == pl1_x)) begin 
+          temp_map[i][j] = 3'd5; 
+        end
+        // player 2 placement
+        else if ((i == pl2_y) && (j == pl2_x)) begin
+          temp_map[i][j] = 3'd6; 
+        end
+        // place bomb based on player 1 location
+        else if (map[i][j] == 3'd5) begin // prev player 1 location
+          // if placed bomb, place the bomb
+          if (bomb_ticking && (i == bomb1_y) && (j == bomb1_x)) begin
+            temp_map[i][j] = 3'd3; // bomb
           end
+          // if no bomb, left is grass
           else begin
-            if (!bomb_firing && (map[i][j] == 3'd4)) begin 
-              temp_map[i][j] = 3'd0; // grass
-            end
-            else begin
-              temp_map[i][j] = map[i][j];
-            end
+            temp_map[i][j] = 3'd0; // grass
           end
+        end 
+        else begin
+          temp_map[i][j] = map[i][j];
         end
       end
     end
@@ -277,6 +317,7 @@ endmodule : TempMap
 module Map
   (input  logic clk, rst_n, refresh,
    input  logic [10:0][14:0][2:0] temp_map,
+   input  logic pl1_win, pl2_win,
    output logic [10:0][14:0][2:0] map);
 
   always_ff @(posedge clk) begin
@@ -305,7 +346,23 @@ module Map
       end
     end
     else if (refresh)
-      map <= temp_map;
+      if (pl1_win) begin
+        for (int i = 0; i < 11; i++) begin
+          for (int j = 0; j < 15; j++) begin 
+            map[i][j] <= 3'd5;
+          end
+        end
+      end
+      else if (pl2_win) begin
+        for (int i = 0; i < 11; i++) begin
+          for (int j = 0; j < 15; j++) begin 
+            map[i][j] <= 3'd6;
+          end
+        end
+      end
+      else begin 
+        map <= temp_map;
+      end
   end
 
 endmodule: Map
