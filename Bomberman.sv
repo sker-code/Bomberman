@@ -37,16 +37,16 @@ module Player
   
   logic up, down, left, right;
 
-  ButtonBuffer up_m(.button_in(btn_up), .clk(clk), .rst_n(rst_n),
+  ButtonBuffer up_m(.button_in(btn_up), .clk(clk), .rst_n(rst_n), .refresh(refresh),
                     .button_out(up));
   
-  ButtonBuffer down_m(.button_in(btn_down), .clk(clk), .rst_n(rst_n),
+  ButtonBuffer down_m(.button_in(btn_down), .clk(clk), .rst_n(rst_n), .refresh(refresh),
                     .button_out(down));
 
-  ButtonBuffer left_m(.button_in(btn_left), .clk(clk), .rst_n(rst_n),
+  ButtonBuffer left_m(.button_in(btn_left), .clk(clk), .rst_n(rst_n), .refresh(refresh),
                     .button_out(left));
   
-  ButtonBuffer right_m(.button_in(btn_right), .clk(clk), .rst_n(rst_n),
+  ButtonBuffer right_m(.button_in(btn_right), .clk(clk), .rst_n(rst_n), .refresh(refresh),
                     .button_out(right));
 
   always_ff @(posedge clk) begin
@@ -73,19 +73,23 @@ module Player
 endmodule: Player
 
 module ButtonBuffer
-  (input  logic button_in, clk, rst_n,
+  (input  logic button_in, clk, rst_n, refresh,
    output logic button_out);
+
+  logic button_sync;
+  Synchronizer sync_m(.async(button_in), .clk(clk),
+                      .sync(button_sync));
   
   enum logic {UP, DOWN} curr_state, next_state;
   
   always_comb begin
     case (curr_state)
       UP: begin
-        next_state = (button_in) ? DOWN : UP;
-        button_out = button_in;
+        next_state = (button_sync && refresh) ? DOWN : UP;
+        button_out = (button_sync && refresh);
       end
       DOWN: begin 
-        next_state = (~button_in) ? UP : DOWN;
+        next_state = (~button_sync && refresh) ? UP : DOWN;
         button_out = 0;
       end
     endcase
@@ -106,45 +110,18 @@ module TempMap
    output logic [10:0][14:0][2:0] temp_map);
   
   always_comb begin
-    if (~rst_n) begin
-      for (int i = 0; i < 11; i++) begin
-        for (int j = 0; j < 15; j++) begin
-          if ((i == 0) || (i == 10) || (j == 0) || (j == 14)) begin 
-            temp_map[i][j] = 3'd2; // unbreakable borders
-          end
-          // else if ((i == pl1_x) && (j == pl1_y)) begin
-          //   temp_map[i][j] = 3'd5; // player 1
-          // end
-          // else if ((i == 9) && (j == 13)) begin
-          //   temp_map[i][j] = 3'd6; // player 2
-          // end
-          else if ((i[0] == 0) && (j[0] == 0))
-            temp_map[i][j] = 3'd2; // between unbreakable blocks
-          else if (((i == 1) && ((j == 1) || (j == 2) || (j == 8))) ||
-                   ((i == 2) && ((j == 1) || (j == 7))) ||
-                   ((i == 3) && ((j == 9)|| (j == 13))) ||
-                   ((i == 4) && ((j == 3)|| (j == 9)))  ||
-                   ((i == 5) && ((j == 5)|| (j == 10))) ||
-                   ((i == 7) && ((j == 2)|| (j == 3)))  ||
-                   ((i == 8) && ((j == 1)|| (j == 13))) ||
-                   ((i == 9) && ((j == 9)|| (j == 12) || (j == 13)))) begin
-            temp_map[i][j] = 3'd0; // grass
-          end
-          else begin
-            temp_map[i][j] = 3'd1; // breakable block
-          end
+    for (int i = 0; i < 11; i++) begin
+      for (int j = 0; j < 15; j++) begin
+        if ((i == pl1_y) && (j == pl1_x)) begin
+          temp_map[i][j] = 3'd5; // player 1
         end
-      end
-    end
-    else begin
-      for (int i = 0; i < 11; i++) begin
-        for (int j = 0; j < 15; j++) begin
-          if ((i == pl1_y) && (j == pl1_x)) begin
-            temp_map[i][j] = 3'd5; // player 1
-          end
-          else if ((i == 9) && (j == 13)) begin
-            temp_map[i][j] = 3'd6; // player 2
-          end
+        else if ((i == 9) && (j == 13)) begin
+          temp_map[i][j] = 3'd6; // player 2
+        end
+        else begin
+          if (map[i][j] == 3'd5) begin// prev player 1 location
+            temp_map[i][j] = 3'd0; // grass
+          end 
           else begin
             temp_map[i][j] = map[i][j];
           end
@@ -161,8 +138,48 @@ module Map
    output logic [10:0][14:0][2:0] map);
 
   always_ff @(posedge clk) begin
-    if (refresh)
+    if (~rst_n) begin
+      for (int i = 0; i < 11; i++) begin
+        for (int j = 0; j < 15; j++) begin
+          if ((i == 0) || (i == 10) || (j == 0) || (j == 14)) begin 
+            map[i][j] <= 3'd2; // unbreakable borders
+          end
+          else if ((i[0] == 0) && (j[0] == 0))
+            map[i][j] <= 3'd2; // between unbreakable blocks
+          else if (((i == 1) && ((j == 1) || (j == 2) || (j == 8))) ||
+                   ((i == 2) && ((j == 1) || (j == 7))) ||
+                   ((i == 3) && ((j == 9)|| (j == 13))) ||
+                   ((i == 4) && ((j == 3)|| (j == 9)))  ||
+                   ((i == 5) && ((j == 5)|| (j == 10))) ||
+                   ((i == 7) && ((j == 2)|| (j == 3)))  ||
+                   ((i == 8) && ((j == 1)|| (j == 13))) ||
+                   ((i == 9) && ((j == 9)|| (j == 12) || (j == 13)))) begin
+            map[i][j] <= 3'd0; // grass
+          end
+          else begin
+            map[i][j] <= 3'd1; // breakable block
+          end
+        end
+      end
+    end
+    else if (refresh)
       map <= temp_map;
   end
 
 endmodule: Map
+
+module Synchronizer
+  (input  logic async, clk,
+   output logic sync);
+
+  logic buffer1, buffer2, buffer3, buffer4, buffer5;
+
+  always_ff @(posedge clk) begin
+    sync <= buffer5;
+    buffer5 <= buffer4;
+    buffer4 <= buffer3;
+    buffer3 <= buffer2;
+    buffer2 <= buffer1;
+    buffer1 <= async;
+  end
+endmodule: Synchronizer
