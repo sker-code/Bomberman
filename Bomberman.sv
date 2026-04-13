@@ -1,15 +1,18 @@
+`default_nettype none
 module Bomberman
   (input  logic clk, rst_n, refresh,
    input  logic btn_up, btn_down, btn_left, btn_right,
+   input  logic btn_bomb, 
    output logic [10:0][14:0][2:0] map,
    output logic [7:0] led);
   
   logic [10:0][14:0][2:0] temp_map;
   logic [3:0] pl1_x, pl1_y;
   logic [3:0] pl2_x, pl2_y;
+  logic [3:0] bomb1_x, bomb1_y;
+  logic bomb1_ticking;
 
-  assign led = {pl1_x, pl1_y};
-
+  assign led = btn_bomb;
   
   Map map_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
             .temp_map(temp_map),
@@ -19,21 +22,103 @@ module Bomberman
                     .map(map),
                     .pl1_x(pl1_x), .pl1_y(pl1_y),
                     .pl2_x(pl2_x), .pl2_y(pl2_y),
+                    .bomb1_x(bomb1_x), .bomb1_y(bomb1_y),
+                    .bomb_ticking(bomb1_ticking),
                     .temp_map(temp_map));
   
   Player player_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
                   .btn_up(btn_up), .btn_down(btn_down), .btn_left(btn_left), .btn_right(btn_right),
+                  .map(map),
                   .pl1_x(pl1_x), .pl1_y(pl1_y),
                   .pl2_x(pl2_x), .pl2_y(pl2_y));
+
+  Bomb bomb_m(.clk(clk), .rst_n(rst_n), .refresh(refresh),
+              .pl_x(pl1_x), .pl_y(pl1_y),
+              .btn_bomb(btn_bomb),
+              .bomb_x(bomb1_x), .bomb_y(bomb1_y),
+              .bomb_ticking(bomb1_ticking));
 
   
 endmodule: Bomberman
 
+module BombCounter
+  (input  logic clk, rst_n, refresh, clear,
+   output logic [6:0] counter);
+  
+  always_ff @(posedge clk) begin
+    if (~rst_n || clear) begin
+      counter <= 0;
+    end
+    else if (refresh) begin
+      counter <= counter + 1;
+    end
+  end
+
+endmodule: BombCounter
+
+module Bomb
+  (input  logic clk, rst_n, refresh,
+   input  logic [3:0] pl_x, pl_y,
+   input  logic btn_bomb,
+   output logic [3:0] bomb_x, bomb_y,
+   output logic bomb_ticking);
+  
+  logic bomb;
+  logic [6:0] counter;
+  logic clear_counter; 
+
+  ButtonBuffer up_m(.button_in(btn_bomb), .clk(clk), .rst_n(rst_n), .refresh(refresh),
+                    .button_out(bomb));
+  
+  enum logic {WAIT, TICKING} curr_state, next_state;
+
+  BombCounter cntr(.clk(clk), .rst_n(rst_n), .refresh(refresh), .clear(clear_counter),
+                   .counter(counter));
+  
+  always_ff @(posedge clk) begin 
+    if (curr_state == WAIT) begin
+      bomb_x <= pl_x;
+      bomb_y <= pl_y;
+    end
+  end
+
+  always_comb begin
+    case (curr_state)
+      WAIT: begin
+        next_state = (bomb) ? TICKING : WAIT;
+        bomb_ticking = 0;
+        clear_counter = 1;
+      end
+      TICKING: begin
+        next_state = (counter == 127) ? WAIT : TICKING;
+        bomb_ticking = 1;
+        clear_counter = 0;
+      end
+    endcase
+  end
+
+  always_ff @(posedge clk) begin
+  if (~rst_n) 
+    curr_state <= WAIT;
+  else
+    curr_state <= next_state;
+  end
+
+endmodule: Bomb
+
 module Player
   (input  logic clk, rst_n, refresh,
    input  logic btn_up, btn_down, btn_left, btn_right,
+   input  logic [10:0][14:0][2:0] map,
    output logic [3:0] pl1_x, pl1_y,
    output logic [3:0] pl2_x, pl2_y);
+
+  logic up_valid, down_valid, left_valid, right_valid;
+
+  assign up_valid = (map[pl1_y - 1][pl1_x] == 0);
+  assign down_valid = (map[pl1_y + 1][pl1_x] == 0);
+  assign left_valid = (map[pl1_y][pl1_x - 1] == 0);
+  assign right_valid = (map[pl1_y][pl1_x + 1] == 0);
   
   logic up, down, left, right;
 
@@ -56,16 +141,16 @@ module Player
       pl2_x <= 9;
       pl2_y <= 13;
     end
-    if (up && pl1_y > 0) begin
+    if (up && pl1_y > 1 && up_valid) begin
       pl1_y <= pl1_y - 1;
     end
-    else if (down && pl1_y < 11) begin
+    else if (down && pl1_y < 9 && down_valid) begin
       pl1_y <= pl1_y + 1;
     end
-    else if (left && pl1_x > 0) begin
+    else if (left && pl1_x > 1 && left_valid) begin
       pl1_x <= pl1_x - 1;
     end
-    else if (right && pl1_x < 15) begin
+    else if (right && pl1_x < 13 && right_valid) begin
       pl1_x <= pl1_x + 1;
     end
   end
@@ -107,6 +192,8 @@ module TempMap
    input  logic [10:0][14:0][2:0] map,
    input  logic [3:0] pl1_x, pl1_y,
    input  logic [3:0] pl2_x, pl2_y,
+   input  logic [3:0] bomb1_x, bomb1_y,
+   input  logic bomb_ticking,
    output logic [10:0][14:0][2:0] temp_map);
   
   always_comb begin
@@ -120,16 +207,25 @@ module TempMap
         end
         else begin
           if (map[i][j] == 3'd5) begin// prev player 1 location
-            temp_map[i][j] = 3'd0; // grass
+            if (bomb_ticking && (i == bomb1_x) && (j == bomb1_y)) begin
+              temp_map[i][j] = 3'd3; // bomb
+            end
+            else begin
+              temp_map[i][j] = 3'd0; // grass
+            end
           end 
           else begin
-            temp_map[i][j] = map[i][j];
+            if (!bomb_ticking && (map[i][j] == 3'd3)) begin // if bomb done ticking
+              temp_map[i][j] = 3'd0; // grass
+            end
+            else begin
+              temp_map[i][j] = map[i][j];
+            end
           end
         end
       end
     end
   end
-
 endmodule : TempMap
 
 module Map

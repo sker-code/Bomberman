@@ -2,6 +2,7 @@
 module ChipInterface
   (input  logic clk, rst_n,
    input  logic btn_up, btn_down, btn_left, btn_right,
+   input  logic btn_bomb,
    output logic [1:0] red, green, blue, 
    output logic HS, VS,
    output logic [7:0] led);
@@ -24,6 +25,7 @@ module ChipInterface
 
   Bomberman game(.clk(clk), .rst_n(rst_n), .refresh(refresh),
                  .btn_up(btn_up), .btn_down(btn_down), .btn_left(btn_left), .btn_right(btn_right),
+                 .btn_bomb(btn_bomb),
                  .map(map),
                  .led(led));
 

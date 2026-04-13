@@ -10,6 +10,7 @@ module Display
   MapDisplay mapdisplay_m(.row(row), .col(col),
                           .map(map),
                           .red(map_red), .green(map_green), .blue(map_blue));
+  
   always_comb begin
     if (blank) begin
       {red, green, blue} = '0;
