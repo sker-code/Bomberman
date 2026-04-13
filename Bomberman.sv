@@ -207,7 +207,7 @@ module TempMap
         end
         else begin
           if (map[i][j] == 3'd5) begin// prev player 1 location
-            if (bomb_ticking && (i == bomb1_x) && (j == bomb1_y)) begin
+            if (bomb_ticking && (i == bomb1_y) && (j == bomb1_x)) begin
               temp_map[i][j] = 3'd3; // bomb
             end
             else begin

@@ -23,7 +23,7 @@ module MapDisplayDecoder
       {red, green, blue} = {2'd1, 2'd1, 2'd1};
     end
     else if (map_value == 3'd3) begin // bomb
-      {red, green, blue} = {2'd3, 2'd3, 2'd1};
+      {red, green, blue} = {2'd0, 2'd0, 2'd0};
     end
     else if (map_value == 3'd4) begin // fire
       {red, green, blue} = {2'd3, 2'd1, 2'd0};
