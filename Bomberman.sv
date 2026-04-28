@@ -306,12 +306,8 @@ module TempMap
                               ((i == bomb2_y) && (j == bomb2_x + 1)))) begin
             temp_map[i][j] = 3'd4; // fire
         end
-        // if bomb finished firing, replace it with grass - player 1
-        else if (!bomb1_firing && (map[i][j] == 3'd4)) begin 
-            temp_map[i][j] = 3'd0; // grass
-        end
-        // if bomb finished firing, replace it with grass - player 2
-        else if (!bomb2_firing && (map[i][j] == 3'd4)) begin 
+        // if bomb finished firing, replace it with grass - player 1 and player 2
+        else if (!bomb1_firing && !bomb2_firing && (map[i][j] == 3'd4)) begin 
             temp_map[i][j] = 3'd0; // grass
         end
         // player 1 placement
