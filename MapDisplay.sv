@@ -20,33 +20,33 @@ module MapDisplay
     col_border = 1'd0;
     if      (row < 10'd68)  begin
                             row_border = 1'd1; // border 
-                            i = 4'd0; // irrelevant
+                            i = 3'd0; // irrelevant
     end
-    else if (row < 10'd136) i = 4'd0; // row 0
-    else if (row < 10'd204) i = 4'd1; // row 1
-    else if (row < 10'd272) i = 4'd2; // row 2
-    else if (row < 10'd340) i = 4'd3; // row 3
-    else if (row < 10'd408) i = 4'd4; // row 4
+    else if (row < 10'd136) i = 3'd0; // row 0
+    else if (row < 10'd204) i = 3'd1; // row 1
+    else if (row < 10'd272) i = 3'd2; // row 2
+    else if (row < 10'd340) i = 3'd3; // row 3
+    else if (row < 10'd408) i = 3'd4; // row 4
     else begin 
                             row_border = 1'd1; // border
-                            i = 4'd0; // irrelevant
+                            i = 3'd0; // irrelevant
     end
 
-    
+
     if      (col < 10'd68)  begin
                             col_border = 1'd1; // border
-                            j = 4'd0; // irrelevant
+                            j = 3'd0; // irrelevant
     end
-    else if (col < 10'd136) j = 4'd0; // col 0
-    else if (col < 10'd204) j = 4'd1; // col 1
-    else if (col < 10'd272) j = 4'd2; // col 2
-    else if (col < 10'd340) j = 4'd3; // col 3
-    else if (col < 10'd408) j = 4'd4; // col 4
-    else if (col < 10'd476) j = 4'd5; // col 5
-    else if (col < 10'd544) j = 4'd6; // col 6
+    else if (col < 10'd136) j = 3'd0; // col 0
+    else if (col < 10'd204) j = 3'd1; // col 1
+    else if (col < 10'd272) j = 3'd2; // col 2
+    else if (col < 10'd340) j = 3'd3; // col 3
+    else if (col < 10'd408) j = 3'd4; // col 4
+    else if (col < 10'd476) j = 3'd5; // col 5
+    else if (col < 10'd544) j = 3'd6; // col 6
     else begin
                             col_border = 1'd1;
-                            j = 4'd0; // irrelevant
+                            j = 3'd0; // irrelevant
     end
   end
 endmodule: MapDisplay
