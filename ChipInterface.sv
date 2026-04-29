@@ -1,5 +1,5 @@
-
 `default_nettype none
+
 module ChipInterface
   (input  logic clk, rst_n,
    input  logic btn_up1, btn_down1, btn_left1, btn_right1,
@@ -7,8 +7,7 @@ module ChipInterface
    input  logic btn_up2, btn_down2, btn_left2, btn_right2,
    input  logic btn_bomb2,
    output logic [1:0] red, green, blue, 
-   output logic HS, VS,
-   output logic [7:0] led);
+   output logic HS, VS);
 
   logic [9:0] row, col;
   logic blank;
@@ -31,8 +30,7 @@ module ChipInterface
                  .btn_bomb1(btn_bomb1),
                  .btn_up2(btn_up2), .btn_down2(btn_down2), .btn_left2(btn_left2), .btn_right2(btn_right2),
                  .btn_bomb2(btn_bomb2),
-                 .map(map),
-                 .led(led));
+                 .map(map));
 
 endmodule: ChipInterface
 
