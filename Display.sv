@@ -2,14 +2,14 @@
 module Display
   (input  logic [9:0] row, col,
    input  logic blank,
-   input  logic [4:0][6:0][2:0] prev_map,
+   input  logic [4:0][6:0][2:0] curr_map,
    output logic [1:0] red, green, blue);
   
   logic border;
   logic [1:0] map_red, map_green, map_blue;
 
   MapDisplay mapdisplay_m(.row(row), .col(col),
-                          .prev_map(prev_map),
+                          .curr_map(curr_map),
                           .border(border),
                           .red(map_red), .green(map_green), .blue(map_blue));
   
